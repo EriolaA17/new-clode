@@ -235,6 +235,17 @@ export default function PropertiesPanel() {
         </Row>
       </Section>
 
+      {/* Image editing */}
+      {!multi && shape.type === 'image' && (
+        <Section title="Image">
+          <button
+            className="w-full text-xs text-[#999] border border-[#3d3d3d] rounded px-2 py-1.5 hover:text-white hover:border-[#555]"
+            onClick={() => window.dispatchEvent(new CustomEvent('figma:edit-image', { detail: { id: shape.id } }))}>
+            Edit Image…
+          </button>
+        </Section>
+      )}
+
       {/* Arrangement */}
       {!multi && (
         <Section title="Arrangement">

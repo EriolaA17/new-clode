@@ -40,6 +40,7 @@ function ImgNode({ shape, onSelect, onDragEnd, onTransformEnd }: ImgNodeProps) {
       visible={shape.visible}
       draggable={!shape.locked}
       onClick={(e) => { e.cancelBubble = true; onSelect(shape.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) }}
+      onDblClick={(e) => { e.cancelBubble = true; window.dispatchEvent(new CustomEvent('figma:edit-image', { detail: { id: shape.id } })) }}
       onDragEnd={(e) => onDragEnd(shape.id, e.target.x(), e.target.y())}
       onTransformEnd={() => onTransformEnd(shape.id)}
       shadowEnabled={shape.shadow?.enabled ?? false}

@@ -9,15 +9,18 @@ import Canvas from './components/Canvas'
 import Timeline from './components/Timeline'
 import TemplatesModal from './components/TemplatesModal'
 import SpriteSlicerModal from './components/SpriteSlicerModal'
+import ImageEditorModal from './components/ImageEditorModal'
+import type { ImageShape } from './types'
 
 export default function App() {
   const {
     activeTool, setTool, undo, redo, deleteSelectedShapes, duplicateSelected,
-    selectedIds, copySelected, pasteClipboard, zoomToSelection, shapes, loadDocument, animFrames,
+    selectedIds, copySelected, pasteClipboard, zoomToSelection, shapes, loadDocument, animFrames, updateShape, pushHistory,
   } = useDesignStore()
 
   const [showTemplates, setShowTemplates] = useState(false)
   const [showSlicer, setShowSlicer] = useState(false)
+  const [editingImageId, setEditingImageId] = useState<string | null>(null)
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -41,6 +44,12 @@ export default function App() {
       }
     } catch {}
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const h = (e: CustomEvent<{ id: string }>) => setEditingImageId(e.detail.id)
+    window.addEventListener('figma:edit-image', h as unknown as EventListener)
+    return () => window.removeEventListener('figma:edit-image', h as unknown as EventListener)
   }, [])
 
   const handleKeyDown = useCallback(
@@ -93,6 +102,25 @@ export default function App() {
       </div>
       {showTemplates && <TemplatesModal onClose={() => setShowTemplates(false)} />}
       {showSlicer && <SpriteSlicerModal onClose={() => setShowSlicer(false)} />}
+      {editingImageId && (() => {
+        const imgShape = shapes.find(s => s.id === editingImageId) as ImageShape | undefined
+        if (!imgShape) return null
+        return (
+          <ImageEditorModal
+            shape={imgShape}
+            onApply={(newSrc) => {
+              const tmp = new window.Image()
+              tmp.onload = () => {
+                updateShape(editingImageId, { src: newSrc, naturalWidth: tmp.naturalWidth, naturalHeight: tmp.naturalHeight } as Partial<ImageShape>)
+                pushHistory()
+              }
+              tmp.src = newSrc
+              setEditingImageId(null)
+            }}
+            onClose={() => setEditingImageId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
