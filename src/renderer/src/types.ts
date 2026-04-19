@@ -1,5 +1,19 @@
 export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'text' | 'line' | 'pen' | 'image'
 
+export type BlendMode =
+  | 'normal' | 'multiply' | 'screen' | 'overlay'
+  | 'darken' | 'lighten' | 'color-dodge' | 'color-burn'
+  | 'hard-light' | 'soft-light' | 'difference' | 'exclusion'
+
+export interface Shadow {
+  enabled: boolean
+  color: string
+  blur: number
+  offsetX: number
+  offsetY: number
+  opacity: number
+}
+
 export interface BaseShape {
   id: string
   type: string
@@ -15,6 +29,8 @@ export interface BaseShape {
   fill: string
   stroke: string
   strokeWidth: number
+  shadow?: Shadow
+  blendMode?: BlendMode
 }
 
 export interface RectShape extends BaseShape { type: 'rect'; cornerRadius: number }
@@ -44,7 +60,7 @@ export interface PenShape extends BaseShape {
 
 export interface ImageShape extends BaseShape {
   type: 'image'
-  src: string       // base64 data URL
+  src: string
   naturalWidth: number
   naturalHeight: number
 }
@@ -58,7 +74,7 @@ export type ShapeOverride = Partial<Pick<BaseShape, 'x' | 'y' | 'width' | 'heigh
 export interface AnimFrame {
   id: string
   label: string
-  duration: number   // ms
+  duration: number
   overrides: Record<string, ShapeOverride>
 }
 
@@ -80,3 +96,5 @@ export interface Template {
   height: number
   bg: string
 }
+
+export type AlignType = 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom'

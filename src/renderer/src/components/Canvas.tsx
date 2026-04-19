@@ -42,6 +42,13 @@ function ImgNode({ shape, onSelect, onDragEnd, onTransformEnd }: ImgNodeProps) {
       onClick={(e) => { e.cancelBubble = true; onSelect(shape.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) }}
       onDragEnd={(e) => onDragEnd(shape.id, e.target.x(), e.target.y())}
       onTransformEnd={() => onTransformEnd(shape.id)}
+      shadowEnabled={shape.shadow?.enabled ?? false}
+      shadowColor={shape.shadow?.color ?? '#000000'}
+      shadowBlur={shape.shadow?.blur ?? 0}
+      shadowOffsetX={shape.shadow?.offsetX ?? 0}
+      shadowOffsetY={shape.shadow?.offsetY ?? 0}
+      shadowOpacity={shape.shadow?.opacity ?? 0.5}
+      globalCompositeOperation={(!shape.blendMode || shape.blendMode === 'normal' ? 'source-over' : shape.blendMode) as GlobalCompositeOperation}
     />
   )
 }
@@ -112,12 +119,20 @@ function ShapeNode({ shape, onSelect, onDragEnd, onTransformEnd, stageRef }: Sha
     return <ImgNode shape={shape as ImageShape} onSelect={onSelect} onDragEnd={onDragEnd} onTransformEnd={onTransformEnd} />
   }
 
+  const sh = shape.shadow
   const common = {
     id: shape.id,
     rotation: shape.rotation,
     opacity: shape.opacity,
     visible: shape.visible,
     draggable: !shape.locked,
+    shadowEnabled: sh?.enabled ?? false,
+    shadowColor: sh?.color ?? '#000000',
+    shadowBlur: sh?.blur ?? 0,
+    shadowOffsetX: sh?.offsetX ?? 0,
+    shadowOffsetY: sh?.offsetY ?? 0,
+    shadowOpacity: sh?.opacity ?? 0.5,
+    globalCompositeOperation: (!shape.blendMode || shape.blendMode === 'normal' ? 'source-over' : shape.blendMode) as GlobalCompositeOperation,
     onClick: (e: Konva.KonvaEventObject<MouseEvent>) => {
       e.cancelBubble = true
       onSelect(shape.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey)
@@ -221,6 +236,7 @@ export default function Canvas() {
     selectedIds, activeTool, zoom, stageX, stageY,
     addShape, updateShape, selectShape, clearSelection,
     setZoom, setStagePosition, pushHistory, getEffectiveShapes,
+    showGrid, snapToGrid, gridSize,
   } = useDesignStore()
 
   const shapes = getEffectiveShapes()
@@ -274,6 +290,26 @@ export default function Canvas() {
     window.addEventListener('figma:export-webp', h as unknown as EventListener)
     return () => window.removeEventListener('figma:export-webp', h as unknown as EventListener)
   }, [])
+
+  // Zoom to selection
+  useEffect(() => {
+    const h = () => {
+      const { selectedIds: ids, shapes: all } = useDesignStore.getState()
+      const sel = all.filter(s => ids.includes(s.id))
+      if (sel.length === 0) return
+      const minX = Math.min(...sel.map(s => s.x))
+      const minY = Math.min(...sel.map(s => s.y))
+      const maxX = Math.max(...sel.map(s => s.x + (s.width || 0)))
+      const maxY = Math.max(...sel.map(s => s.y + (s.height || 0)))
+      const bw = Math.max(maxX - minX, 10); const bh = Math.max(maxY - minY, 10)
+      const pad = 80
+      const nz = Math.min((stageSize.w - pad * 2) / bw, (stageSize.h - pad * 2) / bh, 8)
+      setZoom(nz)
+      setStagePosition(stageSize.w / 2 - (minX + bw / 2) * nz, stageSize.h / 2 - (minY + bh / 2) * nz)
+    }
+    window.addEventListener('figma:zoom-to-selection', h)
+    return () => window.removeEventListener('figma:zoom-to-selection', h)
+  }, [stageSize, setZoom, setStagePosition])
 
   // Spacebar pan toggle
   useEffect(() => {
@@ -494,7 +530,10 @@ export default function Canvas() {
   }, [panning, draw, addShape, pushHistory])
 
   const handleDragEnd = useCallback((id: string, x: number, y: number) => {
-    updateShape(id, { x, y }); pushHistory()
+    const { snapToGrid: snap, gridSize: gs } = useDesignStore.getState()
+    const sx = snap ? Math.round(x / gs) * gs : x
+    const sy = snap ? Math.round(y / gs) * gs : y
+    updateShape(id, { x: sx, y: sy }); pushHistory()
   }, [updateShape, pushHistory])
 
   const handleTransformEnd = useCallback((id: string) => {

@@ -21,5 +21,8 @@ interface Window {
 
     exportGIF: (defaultName: string) => Promise<string | null>
     saveGIF: (filePath: string, data: string) => Promise<boolean>
+
+    chooseDirectory: () => Promise<string | null>
+    saveSlices: (dir: string, slices: { name: string; data: string }[]) => Promise<boolean>
   }
 }

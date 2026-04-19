@@ -154,3 +154,19 @@ ipcMain.handle('file:saveGIF', async (_, { filePath, data }: { filePath: string;
   writeFileSync(filePath, Buffer.from(base64, 'base64'))
   return true
 })
+
+// ─── Sprite slicer ────────────────────────────────────────────────────────────
+
+ipcMain.handle('dialog:chooseDirectory', async () => {
+  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+  return result.canceled ? null : result.filePaths[0] ?? null
+})
+
+ipcMain.handle('file:saveSlices', async (_, { dir, slices }: { dir: string; slices: { name: string; data: string }[] }) => {
+  const { join } = await import('path')
+  for (const slice of slices) {
+    const base64 = slice.data.replace(/^data:image\/[^;]+;base64,/, '')
+    writeFileSync(join(dir, slice.name), Buffer.from(base64, 'base64'))
+  }
+  return true
+})

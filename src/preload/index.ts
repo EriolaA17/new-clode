@@ -40,4 +40,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('dialog:exportGIF', { defaultName }),
   saveGIF: (filePath: string, data: string): Promise<boolean> =>
     ipcRenderer.invoke('file:saveGIF', { filePath, data }),
+
+  // Sprite slicer
+  chooseDirectory: (): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:chooseDirectory'),
+  saveSlices: (dir: string, slices: { name: string; data: string }[]): Promise<boolean> =>
+    ipcRenderer.invoke('file:saveSlices', { dir, slices }),
 })

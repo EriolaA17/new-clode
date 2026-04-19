@@ -39,14 +39,17 @@ function DropdownMenu({ items, onClose }: { items: MenuEntry[]; onClose: () => v
 
 interface MenuBarProps {
   onOpenTemplates: () => void
+  onOpenSlicer: () => void
 }
 
-export default function MenuBar({ onOpenTemplates }: MenuBarProps) {
+export default function MenuBar({ onOpenTemplates, onOpenSlicer }: MenuBarProps) {
   const {
     shapes, documentName, zoom, animFrames,
     setDocumentName, undo, redo, historyIndex, history,
     selectAll, clearSelection, duplicateSelected, deleteSelectedShapes,
     selectedIds, setZoom, setStagePosition, loadDocument,
+    showGrid, snapToGrid, toggleShowGrid, toggleSnapToGrid, zoomToSelection,
+    copySelected, pasteClipboard, clipboard,
   } = useDesignStore()
 
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -161,6 +164,7 @@ export default function MenuBar({ onOpenTemplates }: MenuBarProps) {
         { label: 'Open…', shortcut: 'Ctrl+O', action: handleOpen },
         { separator: true },
         { label: 'Import Image…', action: handleImportImage },
+        { label: 'Sprite Sheet Slicer…', action: onOpenSlicer },
         { separator: true },
         { label: 'Save', shortcut: 'Ctrl+S', action: handleSave },
         { separator: true },
@@ -191,6 +195,10 @@ export default function MenuBar({ onOpenTemplates }: MenuBarProps) {
         { label: 'Zoom Out', shortcut: 'Ctrl+-', action: () => setZoom(zoom / 1.25) },
         { label: 'Zoom to 100%', shortcut: 'Ctrl+0', action: () => { setZoom(1); setStagePosition(0, 0) } },
         { label: 'Zoom to Fit', shortcut: 'Shift+1', action: fitToScreen },
+        { label: 'Zoom to Selection', shortcut: 'Ctrl+Shift+H', action: zoomToSelection },
+        { separator: true },
+        { label: showGrid ? '✓ Show Grid' : 'Show Grid', action: toggleShowGrid },
+        { label: snapToGrid ? '✓ Snap to Grid' : 'Snap to Grid', action: toggleSnapToGrid },
       ]
     }
   ]
