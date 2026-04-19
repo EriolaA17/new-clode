@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useDesignStore } from '../store'
 import type { DesignDocument } from '../types'
 import { shapesToSVG, shapesToLottie } from '../utils/export'
+import { framesToGIF } from '../utils/gifExport'
 
 interface MenuEntry {
   label?: string
@@ -37,9 +38,13 @@ function DropdownMenu({ items, onClose }: { items: MenuEntry[]; onClose: () => v
   )
 }
 
-export default function MenuBar() {
+interface MenuBarProps {
+  onOpenTemplates: () => void
+}
+
+export default function MenuBar({ onOpenTemplates }: MenuBarProps) {
   const {
-    shapes, documentName, zoom,
+    shapes, documentName, zoom, animFrames,
     setDocumentName, undo, redo, historyIndex, history,
     selectAll, clearSelection, duplicateSelected, deleteSelectedShapes,
     selectedIds, setZoom, setStagePosition, loadDocument,
@@ -118,18 +123,52 @@ export default function MenuBar() {
     await window.electronAPI.saveTGS(filePath, JSON.stringify(lottie))
   }
 
+  const handleExportGIF = async () => {
+    if (!window.electronAPI) return
+    if (animFrames.length === 0) { alert('Add animation frames first to export a GIF.'); return }
+    const filePath = await window.electronAPI.exportGIF(documentName)
+    if (!filePath) return
+    // Dispatch event so Canvas can render each frame
+    window.dispatchEvent(new CustomEvent('figma:export-gif', { detail: { filePath, animFrames, shapes } }))
+  }
+
+  const handleImportImage = async () => {
+    if (!window.electronAPI) return
+    const src = await window.electronAPI.importImage()
+    if (!src) return
+    const img = new window.Image()
+    img.onload = () => {
+      const maxDim = 400
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+      const w = img.naturalWidth * scale
+      const h = img.naturalHeight * scale
+      useDesignStore.getState().addShape({
+        type: 'image', name: 'Image',
+        x: 100, y: 100, width: w, height: h,
+        rotation: 0, opacity: 1, visible: true, locked: false,
+        fill: '', stroke: '', strokeWidth: 0,
+        src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+      } as Parameters<typeof useDesignStore.getState().addShape>[0])
+    }
+    img.src = src
+  }
+
   const MENUS: MenuDef[] = [
     {
       title: 'File',
       items: [
         { label: 'New', shortcut: 'Ctrl+N', action: handleNew },
+        { label: 'New from Template…', action: onOpenTemplates },
         { label: 'Open…', shortcut: 'Ctrl+O', action: handleOpen },
+        { separator: true },
+        { label: 'Import Image…', action: handleImportImage },
         { separator: true },
         { label: 'Save', shortcut: 'Ctrl+S', action: handleSave },
         { separator: true },
         { label: 'Export as PNG…',  action: handleExportPNG },
         { label: 'Export as WebP…', action: handleExportWebP },
         { label: 'Export as SVG…',  action: handleExportSVG },
+        { label: 'Export as GIF…',  action: handleExportGIF },
         { label: 'Export as TGS…',  action: handleExportTGS },
       ]
     },

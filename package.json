@@ -28,10 +28,12 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "gifenc": "^1.0.3",
     "konva": "^9.3.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-konva": "^18.2.10",
+    "use-image": "^1.1.4",
     "zustand": "^4.5.0"
   },
   "build": {
@@ -41,16 +43,26 @@
     "directories": {
       "output": "release/${version}"
     },
-    "files": ["out/**/*"],
+    "files": [
+      "out/**/*"
+    ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Graphics"
     },
     "win": {
-      "target": ["nsis", "zip"]
+      "target": [
+        "nsis",
+        "zip"
+      ]
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.graphics-design"
     }
   }

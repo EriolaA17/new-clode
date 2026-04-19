@@ -30,4 +30,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('dialog:exportTGS', { defaultName }),
   saveTGS: (filePath: string, lottie: string): Promise<boolean> =>
     ipcRenderer.invoke('file:saveTGS', { filePath, lottie }),
+
+  // Image import
+  importImage: (): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:importImage'),
+
+  // GIF export
+  exportGIF: (defaultName: string): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:exportGIF', { defaultName }),
+  saveGIF: (filePath: string, data: string): Promise<boolean> =>
+    ipcRenderer.invoke('file:saveGIF', { filePath, data }),
 })

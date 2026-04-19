@@ -120,3 +120,37 @@ ipcMain.handle('file:saveTGS', async (_, { filePath, lottie }: { filePath: strin
   writeFileSync(filePath, compressed)
   return true
 })
+
+// ─── Image import ─────────────────────────────────────────────────────────────
+
+ipcMain.handle('dialog:importImage', async () => {
+  const result = await dialog.showOpenDialog({
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'] }],
+    properties: ['openFile'],
+  })
+  if (result.canceled || !result.filePaths[0]) return null
+  const data = readFileSync(result.filePaths[0])
+  const ext = result.filePaths[0].split('.').pop()?.toLowerCase() ?? ''
+  const mime =
+    ext === 'svg' ? 'image/svg+xml' :
+    ext === 'webp' ? 'image/webp' :
+    ext === 'gif' ? 'image/gif' :
+    ext === 'png' ? 'image/png' : 'image/jpeg'
+  return `data:${mime};base64,${data.toString('base64')}`
+})
+
+// ─── GIF export ───────────────────────────────────────────────────────────────
+
+ipcMain.handle('dialog:exportGIF', async (_, { defaultName }: { defaultName: string }) => {
+  const result = await dialog.showSaveDialog({
+    defaultPath: `${defaultName}.gif`,
+    filters: [{ name: 'GIF Animation', extensions: ['gif'] }],
+  })
+  return result.canceled ? null : result.filePath ?? null
+})
+
+ipcMain.handle('file:saveGIF', async (_, { filePath, data }: { filePath: string; data: string }) => {
+  const base64 = data.replace(/^data:image\/gif;base64,/, '')
+  writeFileSync(filePath, Buffer.from(base64, 'base64'))
+  return true
+})

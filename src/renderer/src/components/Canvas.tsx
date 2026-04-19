@@ -1,8 +1,39 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react'
 import Konva from 'konva'
-import { Stage, Layer, Rect, Ellipse, Text, Line, Transformer } from 'react-konva'
+import { Stage, Layer, Rect, Ellipse, Text, Line, Image as KonvaImage, Transformer } from 'react-konva'
+import useImage from 'use-image'
 import { useDesignStore } from '../store'
-import type { Shape, RectShape, FrameShape, EllipseShape, TextShape, LineShape } from '../types'
+import type { Shape, RectShape, FrameShape, EllipseShape, TextShape, LineShape, PenShape, ImageShape } from '../types'
+
+// ─── Image node ───────────────────────────────────────────────────────────────
+
+interface ImgNodeProps {
+  shape: ImageShape
+  onSelect: (id: string, multi: boolean) => void
+  onDragEnd: (id: string, x: number, y: number) => void
+  onTransformEnd: (id: string) => void
+}
+
+function ImgNode({ shape, onSelect, onDragEnd, onTransformEnd }: ImgNodeProps) {
+  const [img] = useImage(shape.src)
+  const nodeRef = useRef<Konva.Image>(null)
+  return (
+    <KonvaImage
+      ref={nodeRef}
+      id={shape.id}
+      image={img}
+      x={shape.x} y={shape.y}
+      width={shape.width} height={shape.height}
+      rotation={shape.rotation}
+      opacity={shape.opacity}
+      visible={shape.visible}
+      draggable={!shape.locked}
+      onClick={(e) => { e.cancelBubble = true; onSelect(shape.id, e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey) }}
+      onDragEnd={(e) => onDragEnd(shape.id, e.target.x(), e.target.y())}
+      onTransformEnd={() => onTransformEnd(shape.id)}
+    />
+  )
+}
 
 // ─── Individual shape renderer ────────────────────────────────────────────────
 
@@ -58,13 +89,17 @@ function ShapeNode({ shape, onSelect, onDragEnd, onTransformEnd, stageRef }: Sha
     ta.select()
 
     const finish = () => {
-      updateShape(shape.id, { text: ta.value })
+      updateShape(shape.id, { text: ta.value } as Partial<TextShape>)
       node.show()
       if (document.body.contains(ta)) document.body.removeChild(ta)
     }
     ta.addEventListener('blur', finish, { once: true })
     ta.addEventListener('keydown', (e) => { if (e.key === 'Escape') ta.blur() })
   }, [shape, updateShape, stageRef])
+
+  if (shape.type === 'image') {
+    return <ImgNode shape={shape as ImageShape} onSelect={onSelect} onDragEnd={onDragEnd} onTransformEnd={onTransformEnd} />
+  }
 
   const common = {
     id: shape.id,
@@ -141,6 +176,19 @@ function ShapeNode({ shape, onSelect, onDragEnd, onTransformEnd, stageRef }: Sha
         />
       )
     }
+    case 'pen': {
+      const s = shape as PenShape
+      return (
+        <Line
+          ref={nodeRef as React.RefObject<Konva.Line>}
+          {...common}
+          x={s.x} y={s.y} points={s.points}
+          stroke={s.fill || '#000000'} strokeWidth={s.strokeWidth || 2}
+          tension={s.tension ?? 0.5}
+          lineCap="round" lineJoin="round" hitStrokeWidth={12}
+        />
+      )
+    }
     default:
       return null
   }
@@ -159,10 +207,12 @@ const EMPTY_DRAW: DrawState = { active: false, startX: 0, startY: 0, preview: nu
 
 export default function Canvas() {
   const {
-    shapes, selectedIds, activeTool, zoom, stageX, stageY,
+    selectedIds, activeTool, zoom, stageX, stageY,
     addShape, updateShape, selectShape, clearSelection,
-    setZoom, setStagePosition, pushHistory,
+    setZoom, setStagePosition, pushHistory, getEffectiveShapes,
   } = useDesignStore()
+
+  const shapes = getEffectiveShapes()
 
   const stageRef = useRef<Konva.Stage>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
@@ -175,7 +225,9 @@ export default function Canvas() {
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [stageSize, setStageSize] = useState({ w: 800, h: 600 })
 
-  // Measure container synchronously before paint to avoid a 0-size flash
+  // pen points accumulated during freehand drawing
+  const penPointsRef = useRef<number[]>([])
+
   useLayoutEffect(() => {
     if (containerRef.current) {
       const r = containerRef.current.getBoundingClientRect()
@@ -183,7 +235,6 @@ export default function Canvas() {
     }
   }, [])
 
-  // Keep stage size in sync with container
   useEffect(() => {
     const obs = new ResizeObserver(entries => {
       const e = entries[0]
@@ -234,7 +285,50 @@ export default function Canvas() {
     tr.getLayer()?.batchDraw()
   }, [selectedIds, shapes])
 
-  // Canvas coordinate from Konva pointer position
+  // Image drag-and-drop from desktop
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const onDragOver = (e: DragEvent) => { e.preventDefault() }
+    const onDrop = async (e: DragEvent) => {
+      e.preventDefault()
+      const file = e.dataTransfer?.files[0]
+      if (!file || !file.type.startsWith('image/')) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        const src = reader.result as string
+        const img = new window.Image()
+        img.onload = () => {
+          const stage = stageRef.current
+          const pos = stage?.getPointerPosition() ?? { x: 200, y: 200 }
+          const cx = (pos.x - stageX) / zoom
+          const cy = (pos.y - stageY) / zoom
+          const maxDim = 400
+          const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+          const w = img.naturalWidth * scale
+          const h = img.naturalHeight * scale
+          addShape({
+            type: 'image', name: file.name.replace(/\.[^.]+$/, ''),
+            x: cx - w / 2, y: cy - h / 2, width: w, height: h,
+            rotation: 0, opacity: 1, visible: true, locked: false,
+            fill: '', stroke: '', strokeWidth: 0,
+            src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+          } as Omit<Shape, 'id'>)
+        }
+        img.src = src
+      }
+      reader.readAsDataURL(file)
+    }
+
+    container.addEventListener('dragover', onDragOver)
+    container.addEventListener('drop', onDrop)
+    return () => {
+      container.removeEventListener('dragover', onDragOver)
+      container.removeEventListener('drop', onDrop)
+    }
+  }, [addShape, stageX, stageY, zoom])
+
   const getCanvasPos = useCallback(() => {
     const stage = stageRef.current
     if (!stage) return { x: 0, y: 0 }
@@ -255,7 +349,6 @@ export default function Canvas() {
   }, [zoom, stageX, stageY, setZoom, setStagePosition])
 
   const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    // e.target === e.currentTarget means the click landed on the Stage background
     const onBackground = e.target === e.currentTarget
     const panMode = activeTool === 'hand' || spaceHeld
 
@@ -265,7 +358,7 @@ export default function Canvas() {
       return
     }
 
-    if (!onBackground) return   // clicked a shape — let the shape's onClick handle it
+    if (!onBackground) return
 
     if (activeTool === 'select') { clearSelection(); return }
 
@@ -281,6 +374,41 @@ export default function Canvas() {
         fontSize: 16, fontFamily: 'Inter, sans-serif', fontStyle: 'normal',
         textAlign: 'left', lineHeight: 1.2,
       } as Omit<Shape, 'id'>)
+      return
+    }
+
+    if (activeTool === 'pen') {
+      penPointsRef.current = [pos.x, pos.y]
+      const preview: PenShape = {
+        id: '__preview__', type: 'pen', name: 'Pen',
+        x: 0, y: 0, width: 0, height: 0,
+        rotation: 0, opacity: 1, visible: true, locked: false,
+        fill: '#1a1a1a', stroke: '', strokeWidth: 2,
+        points: [pos.x, pos.y], tension: 0.5,
+      }
+      setDraw({ active: true, startX: pos.x, startY: pos.y, preview })
+      return
+    }
+
+    if (activeTool === 'image') {
+      window.electronAPI?.importImage().then(src => {
+        if (!src) return
+        const img = new window.Image()
+        img.onload = () => {
+          const maxDim = 400
+          const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+          const w = img.naturalWidth * scale
+          const h = img.naturalHeight * scale
+          addShape({
+            type: 'image', name: 'Image',
+            x: pos.x - w / 2, y: pos.y - h / 2, width: w, height: h,
+            rotation: 0, opacity: 1, visible: true, locked: false,
+            fill: '', stroke: '', strokeWidth: 0,
+            src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+          } as Omit<Shape, 'id'>)
+        }
+        img.src = src
+      })
       return
     }
 
@@ -306,6 +434,16 @@ export default function Canvas() {
     if (!draw.active || !draw.preview) return
 
     const pos = getCanvasPos()
+
+    if (draw.preview.type === 'pen') {
+      penPointsRef.current = [...penPointsRef.current, pos.x, pos.y]
+      setDraw(prev => ({
+        ...prev,
+        preview: { ...prev.preview!, points: [...penPointsRef.current] } as PenShape,
+      }))
+      return
+    }
+
     const { startX, startY } = draw
     const x = Math.min(pos.x, startX)
     const y = Math.min(pos.y, startY)
@@ -323,13 +461,26 @@ export default function Canvas() {
     if (panning) { setPanning(false); return }
     if (!draw.active || !draw.preview) return
     const s = draw.preview
+
+    if (s.type === 'pen') {
+      const pts = penPointsRef.current
+      if (pts.length >= 4) {
+        const { id: _id, ...data } = s as PenShape
+        addShape({ ...data, points: pts } as Omit<Shape, 'id'>)
+        pushHistory()
+      }
+      penPointsRef.current = []
+      setDraw(EMPTY_DRAW)
+      return
+    }
+
     const ok = s.type === 'line' || (s.width >= 5 && s.height >= 5)
     if (ok) {
       const { id: _id, ...data } = s
       addShape(data as Omit<Shape, 'id'>)
     }
     setDraw(EMPTY_DRAW)
-  }, [panning, draw, addShape])
+  }, [panning, draw, addShape, pushHistory])
 
   const handleDragEnd = useCallback((id: string, x: number, y: number) => {
     updateShape(id, { x, y }); pushHistory()
@@ -354,6 +505,8 @@ export default function Canvas() {
       ;(updates as Partial<TextShape>).fontSize = Math.round((shape as TextShape).fontSize * sx)
     } else if (shape.type === 'line') {
       ;(updates as Partial<LineShape>).points = (shape as LineShape).points.map((p, i) => p * (i % 2 === 0 ? sx : sy))
+    } else if (shape.type === 'pen') {
+      ;(updates as Partial<PenShape>).points = (shape as PenShape).points.map((p, i) => p * (i % 2 === 0 ? sx : sy))
     } else {
       updates.width = Math.max(1, shape.width * sx)
       updates.height = Math.max(1, shape.height * sy)
@@ -364,13 +517,15 @@ export default function Canvas() {
 
   const cursor = spaceHeld || activeTool === 'hand'
     ? (panning ? 'grabbing' : 'grab')
-    : activeTool === 'select' ? 'default' : 'crosshair'
+    : activeTool === 'select' ? 'default'
+    : activeTool === 'pen' ? 'crosshair'
+    : activeTool === 'image' ? 'copy'
+    : 'crosshair'
 
   const { preview } = draw
 
   return (
     <div ref={containerRef} className="flex-1 relative overflow-hidden bg-[#383838]" style={{ cursor }}>
-      {/* Zoom badge */}
       <div className="absolute bottom-4 left-4 z-10 bg-[#252526] text-[#999] text-xs px-2 py-1 rounded pointer-events-none select-none">
         {Math.round(zoom * 100)}%
       </div>
@@ -414,6 +569,10 @@ export default function Canvas() {
                 case 'line':
                   return <Line x={preview.x} y={preview.y} points={(preview as LineShape).points}
                     stroke="#0079FF" strokeWidth={2 / zoom} listening={false} />
+                case 'pen':
+                  return <Line points={(preview as PenShape).points}
+                    stroke="#0079FF" strokeWidth={2 / zoom}
+                    tension={0.5} lineCap="round" lineJoin="round" listening={false} />
                 default: return null
               }
             })()}

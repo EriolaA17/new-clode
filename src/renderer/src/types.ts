@@ -1,4 +1,4 @@
-export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'text' | 'line'
+export type Tool = 'select' | 'hand' | 'frame' | 'rect' | 'ellipse' | 'text' | 'line' | 'pen' | 'image'
 
 export interface BaseShape {
   id: string
@@ -17,19 +17,9 @@ export interface BaseShape {
   strokeWidth: number
 }
 
-export interface RectShape extends BaseShape {
-  type: 'rect'
-  cornerRadius: number
-}
-
-export interface FrameShape extends BaseShape {
-  type: 'frame'
-  cornerRadius: number
-}
-
-export interface EllipseShape extends BaseShape {
-  type: 'ellipse'
-}
+export interface RectShape extends BaseShape { type: 'rect'; cornerRadius: number }
+export interface FrameShape extends BaseShape { type: 'frame'; cornerRadius: number }
+export interface EllipseShape extends BaseShape { type: 'ellipse' }
 
 export interface TextShape extends BaseShape {
   type: 'text'
@@ -46,10 +36,47 @@ export interface LineShape extends BaseShape {
   points: number[]
 }
 
-export type Shape = RectShape | FrameShape | EllipseShape | TextShape | LineShape
+export interface PenShape extends BaseShape {
+  type: 'pen'
+  points: number[]
+  tension: number
+}
+
+export interface ImageShape extends BaseShape {
+  type: 'image'
+  src: string       // base64 data URL
+  naturalWidth: number
+  naturalHeight: number
+}
+
+export type Shape = RectShape | FrameShape | EllipseShape | TextShape | LineShape | PenShape | ImageShape
+
+// ─── Animation ────────────────────────────────────────────────────────────────
+
+export type ShapeOverride = Partial<Pick<BaseShape, 'x' | 'y' | 'width' | 'height' | 'rotation' | 'opacity' | 'fill' | 'stroke' | 'strokeWidth'>>
+
+export interface AnimFrame {
+  id: string
+  label: string
+  duration: number   // ms
+  overrides: Record<string, ShapeOverride>
+}
+
+// ─── Document ─────────────────────────────────────────────────────────────────
 
 export interface DesignDocument {
   version: string
   name: string
   shapes: Shape[]
+  animFrames?: AnimFrame[]
+}
+
+// ─── Template ─────────────────────────────────────────────────────────────────
+
+export interface Template {
+  name: string
+  category: string
+  width: number
+  height: number
+  bg: string
 }

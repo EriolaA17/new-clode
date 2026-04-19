@@ -57,10 +57,22 @@ const SHAPE_TOOLS: ToolItem[] = [
     icon: <ToolIcon path="M20.707 3.293a1 1 0 010 1.414l-16 16a1 1 0 01-1.414-1.414l16-16a1 1 0 011.414 0z" />
   },
   {
+    id: 'pen',
+    label: 'Pen (Draw)',
+    shortcut: 'P',
+    icon: <ToolIcon path="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm2.92 1.42H5v-.7l9.06-9.06.7.7-8.84 9.06zM20.71 5.63l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83a1 1 0 000-1.41z" />
+  },
+  {
     id: 'text',
     label: 'Text',
     shortcut: 'T',
     icon: <ToolIcon path="M5 4v3h5.5v12h3V7H19V4H5z" />
+  },
+  {
+    id: 'image',
+    label: 'Image',
+    shortcut: 'I',
+    icon: <ToolIcon path="M21 3H3a2 2 0 00-2 2v14a2 2 0 002 2h18a2 2 0 002-2V5a2 2 0 00-2-2zm0 16H3V5h18v14zm-9-7l-3 4H6l3-4 2 2.5 2.5-3.5L18 16H9l3-4z" />
   },
 ]
 
