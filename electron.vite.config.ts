@@ -9,11 +9,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
-    plugins: [react()],
-    css: {
-      postcss: {
-        plugins: []
-      }
-    }
+    plugins: [react()]
+    // PostCSS is read from postcss.config.cjs automatically
   }
 })
