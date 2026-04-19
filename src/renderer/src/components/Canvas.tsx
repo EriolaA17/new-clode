@@ -225,6 +225,20 @@ export default function Canvas() {
     return () => window.removeEventListener('figma:export-png', handler as unknown as EventListener)
   }, [])
 
+  // WebP export (pixel-based, needs stage)
+  useEffect(() => {
+    const handler = async (e: CustomEvent<{ filePath: string }>) => {
+      const stage = stageRef.current
+      if (!stage) return
+      // Chromium supports image/webp; fall back to png if not
+      const mimeType = 'image/webp'
+      const dataURL = stage.toDataURL({ pixelRatio: 2, mimeType })
+      await window.electronAPI?.saveWebP(e.detail.filePath, dataURL)
+    }
+    window.addEventListener('figma:export-webp', handler as unknown as EventListener)
+    return () => window.removeEventListener('figma:export-webp', handler as unknown as EventListener)
+  }, [])
+
   // Spacebar for pan mode
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

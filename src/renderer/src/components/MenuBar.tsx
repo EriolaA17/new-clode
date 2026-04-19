@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useDesignStore } from '../store'
 import type { DesignDocument } from '../types'
+import { shapesToSVG, shapesToLottie } from '../utils/export'
 
 interface MenuEntry {
   label?: string
@@ -91,8 +92,30 @@ export default function MenuBar() {
     if (!window.electronAPI) return
     const filePath = await window.electronAPI.exportPNG(documentName)
     if (!filePath) return
-    // Trigger canvas export via custom event
     window.dispatchEvent(new CustomEvent('figma:export-png', { detail: { filePath } }))
+  }
+
+  const handleExportWebP = async () => {
+    if (!window.electronAPI) return
+    const filePath = await window.electronAPI.exportWebP(documentName)
+    if (!filePath) return
+    window.dispatchEvent(new CustomEvent('figma:export-webp', { detail: { filePath } }))
+  }
+
+  const handleExportSVG = async () => {
+    if (!window.electronAPI) return
+    const filePath = await window.electronAPI.exportSVG(documentName)
+    if (!filePath) return
+    const svg = shapesToSVG(shapes)
+    await window.electronAPI.saveSVG(filePath, svg)
+  }
+
+  const handleExportTGS = async () => {
+    if (!window.electronAPI) return
+    const filePath = await window.electronAPI.exportTGS(documentName)
+    if (!filePath) return
+    const lottie = shapesToLottie(shapes, documentName)
+    await window.electronAPI.saveTGS(filePath, JSON.stringify(lottie))
   }
 
   const MENUS: MenuDef[] = [
@@ -104,7 +127,10 @@ export default function MenuBar() {
         { separator: true },
         { label: 'Save', shortcut: 'Ctrl+S', action: handleSave },
         { separator: true },
-        { label: 'Export as PNG…', action: handleExportPNG },
+        { label: 'Export as PNG…',  action: handleExportPNG },
+        { label: 'Export as WebP…', action: handleExportWebP },
+        { label: 'Export as SVG…',  action: handleExportSVG },
+        { label: 'Export as TGS…',  action: handleExportTGS },
       ]
     },
     {

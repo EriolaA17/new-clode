@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
+import { gzipSync } from 'zlib'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -41,6 +42,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
+// ─── File dialogs ─────────────────────────────────────────────────────────────
+
 ipcMain.handle('dialog:openFile', async () => {
   const result = await dialog.showOpenDialog({
     filters: [{ name: 'Figma Local Files', extensions: ['flocal', 'json'] }],
@@ -66,12 +69,55 @@ ipcMain.handle('dialog:exportPNG', async (_, { defaultName }: { defaultName: str
     defaultPath: `${defaultName}.png`,
     filters: [{ name: 'PNG Image', extensions: ['png'] }],
   })
-  if (result.canceled || !result.filePath) return null
-  return result.filePath
+  return result.canceled ? null : result.filePath ?? null
 })
+
+ipcMain.handle('dialog:exportWebP', async (_, { defaultName }: { defaultName: string }) => {
+  const result = await dialog.showSaveDialog({
+    defaultPath: `${defaultName}.webp`,
+    filters: [{ name: 'WebP Image', extensions: ['webp'] }],
+  })
+  return result.canceled ? null : result.filePath ?? null
+})
+
+ipcMain.handle('dialog:exportSVG', async (_, { defaultName }: { defaultName: string }) => {
+  const result = await dialog.showSaveDialog({
+    defaultPath: `${defaultName}.svg`,
+    filters: [{ name: 'SVG Vector', extensions: ['svg'] }],
+  })
+  return result.canceled ? null : result.filePath ?? null
+})
+
+ipcMain.handle('dialog:exportTGS', async (_, { defaultName }: { defaultName: string }) => {
+  const result = await dialog.showSaveDialog({
+    defaultPath: `${defaultName}.tgs`,
+    filters: [{ name: 'Telegram Sticker (TGS)', extensions: ['tgs'] }],
+  })
+  return result.canceled ? null : result.filePath ?? null
+})
+
+// ─── File savers ──────────────────────────────────────────────────────────────
 
 ipcMain.handle('file:savePNG', async (_, { filePath, data }: { filePath: string; data: string }) => {
   const base64 = data.replace(/^data:image\/png;base64,/, '')
   writeFileSync(filePath, Buffer.from(base64, 'base64'))
+  return true
+})
+
+ipcMain.handle('file:saveWebP', async (_, { filePath, data }: { filePath: string; data: string }) => {
+  const base64 = data.replace(/^data:image\/webp;base64,/, '').replace(/^data:image\/png;base64,/, '')
+  writeFileSync(filePath, Buffer.from(base64, 'base64'))
+  return true
+})
+
+ipcMain.handle('file:saveSVG', async (_, { filePath, svg }: { filePath: string; svg: string }) => {
+  writeFileSync(filePath, svg, 'utf-8')
+  return true
+})
+
+/** Receives a Lottie JSON string, gzip-compresses it, writes as .tgs */
+ipcMain.handle('file:saveTGS', async (_, { filePath, lottie }: { filePath: string; lottie: string }) => {
+  const compressed = gzipSync(Buffer.from(lottie, 'utf-8'), { level: 9 })
+  writeFileSync(filePath, compressed)
   return true
 })

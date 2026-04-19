@@ -7,20 +7,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveFile: (content: string, defaultName: string): Promise<string | null> =>
     ipcRenderer.invoke('dialog:saveFile', { content, defaultName }),
 
+  // PNG
   exportPNG: (defaultName: string): Promise<string | null> =>
     ipcRenderer.invoke('dialog:exportPNG', { defaultName }),
-
   savePNG: (filePath: string, data: string): Promise<boolean> =>
     ipcRenderer.invoke('file:savePNG', { filePath, data }),
-})
 
-declare global {
-  interface Window {
-    electronAPI: {
-      openFile: () => Promise<{ path: string; content: string } | null>
-      saveFile: (content: string, defaultName: string) => Promise<string | null>
-      exportPNG: (defaultName: string) => Promise<string | null>
-      savePNG: (filePath: string, data: string) => Promise<boolean>
-    }
-  }
-}
+  // WebP
+  exportWebP: (defaultName: string): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:exportWebP', { defaultName }),
+  saveWebP: (filePath: string, data: string): Promise<boolean> =>
+    ipcRenderer.invoke('file:saveWebP', { filePath, data }),
+
+  // SVG
+  exportSVG: (defaultName: string): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:exportSVG', { defaultName }),
+  saveSVG: (filePath: string, svg: string): Promise<boolean> =>
+    ipcRenderer.invoke('file:saveSVG', { filePath, svg }),
+
+  // TGS (animated Telegram sticker — gzip Lottie JSON)
+  exportTGS: (defaultName: string): Promise<string | null> =>
+    ipcRenderer.invoke('dialog:exportTGS', { defaultName }),
+  saveTGS: (filePath: string, lottie: string): Promise<boolean> =>
+    ipcRenderer.invoke('file:saveTGS', { filePath, lottie }),
+})
