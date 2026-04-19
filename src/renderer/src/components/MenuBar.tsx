@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useDesignStore } from '../store'
-import type { DesignDocument } from '../types'
+import type { DesignDocument, ImageShape } from '../types'
 import { shapesToSVG, shapesToLottie } from '../utils/export'
-import { framesToGIF } from '../utils/gifExport'
 
 interface MenuEntry {
   label?: string
@@ -148,7 +147,7 @@ export default function MenuBar({ onOpenTemplates }: MenuBarProps) {
         rotation: 0, opacity: 1, visible: true, locked: false,
         fill: '', stroke: '', strokeWidth: 0,
         src, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
-      } as Parameters<typeof useDesignStore.getState().addShape>[0])
+      } as Omit<ImageShape, 'id'>)
     }
     img.src = src
   }

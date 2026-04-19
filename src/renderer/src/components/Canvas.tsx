@@ -1,9 +1,20 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react'
 import Konva from 'konva'
 import { Stage, Layer, Rect, Ellipse, Text, Line, Image as KonvaImage, Transformer } from 'react-konva'
-import useImage from 'use-image'
 import { useDesignStore } from '../store'
 import type { Shape, RectShape, FrameShape, EllipseShape, TextShape, LineShape, PenShape, ImageShape } from '../types'
+
+// simple image loader — avoids the use-image package (Vite renderer can't resolve it)
+function useKonvaImage(src: string): HTMLImageElement | undefined {
+  const [img, setImg] = useState<HTMLImageElement | undefined>()
+  useEffect(() => {
+    if (!src) return
+    const i = new window.Image()
+    i.onload = () => setImg(i)
+    i.src = src
+  }, [src])
+  return img
+}
 
 // ─── Image node ───────────────────────────────────────────────────────────────
 
@@ -15,7 +26,7 @@ interface ImgNodeProps {
 }
 
 function ImgNode({ shape, onSelect, onDragEnd, onTransformEnd }: ImgNodeProps) {
-  const [img] = useImage(shape.src)
+  const img = useKonvaImage(shape.src)
   const nodeRef = useRef<Konva.Image>(null)
   return (
     <KonvaImage
